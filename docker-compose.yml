@@ -10,6 +10,7 @@ services:
     container_name: comfyui
     ports:
       - "8188:8188"
+    # network_mode: "host"
     volumes:
       # persist your models, output, and settings:
       - c:/home/user/comfyui/models:/app/ComfyUI/models
@@ -25,6 +26,7 @@ services:
     
     runtime: nvidia
     environment:
+      - PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
       - NVIDIA_VISIBLE_DEVICES=all
     stdin_open: true
     tty: true
