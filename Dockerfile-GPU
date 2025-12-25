@@ -1,0 +1,49 @@
+FROM pytorch/pytorch:2.4.0-cuda12.1-cudnn9-runtime
+
+ENV PYTHONUNBUFFERED=1
+ENV PIP_NO_CACHE_DIR=1
+
+# 1. 系统依赖
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git libgl1-mesa-glx libglib2.0-0 libgoogle-perftools-dev \
+    fonts-dejavu-core fontconfig build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# 2. 用户与权限预设
+ARG UID=1000
+ARG GID=1000
+RUN groupadd --gid ${GID} appuser && \
+    useradd --uid ${UID} --gid ${GID} --create-home --shell /bin/bash appuser
+
+# 3. 创建主应用目录并授权
+WORKDIR /app
+RUN chown appuser:appuser /app
+
+# 切换用户
+USER appuser
+
+# 4. 克隆到子目录 /app/ComfyUI
+RUN git clone https://github.com/comfyanonymous/ComfyUI.git /app/ComfyUI
+
+# 5. 【关键】切换到 ComfyUI 目录
+WORKDIR /app/ComfyUI
+
+# 6. 在 ComfyUI 目录下创建虚拟环境
+# 这样 venv 也在 appuser 的权限范围内
+RUN python -m venv venv
+ENV PATH="/app/ComfyUI/venv/bin:$PATH"
+
+# 安装依赖
+RUN pip install --upgrade pip && \
+    pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+# 7. 端口与入口脚本
+EXPOSE 8188
+COPY --chown=appuser:appuser entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+# 注意：因为 WORKDIR 已经是 /app/ComfyUI，所以直接运行 main.py
+CMD ["python", "main.py", "--listen", "0.0.0.0"]
